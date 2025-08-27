@@ -183,6 +183,13 @@ struct {
     __type(value, __u8); /* unused */
 } is_h2 SEC(".maps");
 
+struct {
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
+    __uint(max_entries, 1024);
+    __type(key, char *);
+    __type(value, __u32);
+} readbuf_len SEC(".maps");
+
 /* Set process information in the event structure. */
 static __always_inline void set_proc_info(struct event *event) {
     bpf_get_current_comm(&event->comm, sizeof(event->comm));
