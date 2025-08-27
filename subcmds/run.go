@@ -91,6 +91,7 @@ type eventStateT struct {
 }
 
 type ContainerInfo struct {
+	Id     string
 	Name   string
 	Image  string
 	PodUId string
@@ -129,6 +130,10 @@ func run(ctx context.Context, done chan error) {
 	defer func() { done <- nil }()
 
 	glog.Infof("Running on [%v]", internal.Uname())
+	orgId := os.Getenv("ORG_ID")
+	if orgId == "" {
+		orgId = "temp"
+	}
 
 	// Allow the current process to lock memory for eBPF resources.
 	if err := rlimit.RemoveMemlock(); err != nil {
@@ -381,10 +386,12 @@ func run(ctx context.Context, done chan error) {
 		}
 	}()
 
-	podUids := make(map[string]string) // key=pod-uid, value=ns/pod-name
+	podUids := make(map[string]string)   // key=pod-uid, value=ns/pod-name
+	ipToPodId := make(map[string]string) // key=ip, value=pod-uid
 	ipToContainer := make(map[string]*ContainerInfo)
 	var ipToContainerMtx sync.Mutex
 	var podUidsMtx sync.Mutex
+	var ipToPodIdMtx sync.Mutex
 	podUidsCtx := internal.ChildCtx(ctx)
 
 	wg.Add(1)
@@ -430,7 +437,6 @@ func run(ctx context.Context, done chan error) {
 						Image:  container.Image,
 						PodUId: string(pod.ObjectMeta.UID),
 					}
-
 					func() {
 						ipToContainerMtx.Lock()
 						defer ipToContainerMtx.Unlock()
@@ -439,11 +445,27 @@ func run(ctx context.Context, done chan error) {
 					}()
 				}
 
+				// Get container ID
+				for _, status := range pod.Status.ContainerStatuses {
+					func() {
+						ipToContainerMtx.Lock()
+						defer ipToContainerMtx.Unlock()
+						info := ipToContainer[pod.Status.PodIP]
+						info.Id = status.ContainerID
+					}()
+				}
+
 				func() {
 					podUidsMtx.Lock()
 					defer podUidsMtx.Unlock()
 					val := fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
 					podUids[string(pod.ObjectMeta.UID)] = val
+				}()
+
+				func() {
+					ipToPodIdMtx.Lock()
+					defer ipToPodIdMtx.Unlock()
+					ipToPodId[pod.Status.PodIP] = string(pod.ObjectMeta.UID)
 				}()
 			}
 		}
@@ -929,7 +951,7 @@ func run(ctx context.Context, done chan error) {
 					fmt.Fprintf(&line, "key=%v, totalLen=%v, chunkLen=%v, ", key, event.TotalLen, event.ChunkLen)
 					fmt.Fprintf(&line, "src=%v:%v, ", internal.IntToIp(event.Saddr), event.Sport)
 					fmt.Fprintf(&line, "dst=%v:%v ", internal.IntToIp(event.Daddr), event.Dport)
-					var containerName, containerImage string
+					var containerName, containerImage, containerId, host string
 					func() {
 						if !isk8s {
 							return
@@ -940,7 +962,8 @@ func run(ctx context.Context, done chan error) {
 						if ok {
 							containerName = info.Name
 							containerImage = info.Image
-							fmt.Fprintf(&line, "srcContainerName=%v ", info.Name)
+							containerId = info.Id
+							fmt.Fprintf(&line, "srcContainerName=%v, srcContainerId=%v, ", info.Name, info.Id)
 						}
 					}()
 
@@ -955,21 +978,42 @@ func run(ctx context.Context, done chan error) {
 							fmt.Fprintf(&line, "targetDomain=%v ", info)
 						}
 					}()
+
+					func() {
+						if !isk8s {
+							return
+						}
+						ipToPodIdMtx.Lock()
+						defer ipToPodIdMtx.Unlock()
+						id, ok := ipToPodId[internal.IntToIp(event.Saddr).String()]
+						if ok {
+							host = id
+						}
+					}()
 					internalglog.LogInfo(line.String())
 
+					if !isk8s && host == "" {
+						host, _ = os.Hostname()
+					}
 					if strings.Contains(fmt.Sprintf("%s", event.Comm), "node") || (strings.Contains(fmt.Sprintf("%s", event.Comm), "python")) && params.RunfSaveDb {
 						cols := []string{
-							"id",
-							"message_id",
+							"org_id",
+							"host",         // podUId if k8s, else hostname
+							"container_id", // empty string if !k8s
+							"id",           // fmt: tgid/pid
+							"message_id",   // global counter per pod
 							"idx",
 							"src_addr",
 							"dst_addr",
-							"container_name",
-							"container_image",
+							"container_name",  // empty string if !k8s
+							"container_image", // empty string if !k8s
 							"content",
 							"created_at",
 						}
 						vals := []any{
+							orgId,
+							host,
+							containerId,
 							fmt.Sprintf("%v/%v", event.Tgid, event.Pid),
 							fmt.Sprintf("%v", event.MessageId),
 							fmt.Sprintf("%v", event.ChunkIdx),
@@ -981,7 +1025,7 @@ func run(ctx context.Context, done chan error) {
 							"COMMIT_TIMESTAMP",
 						}
 						mut := internal.SpannerPayload{
-							Table: "llm_prompt",
+							Table: "llm_prompts",
 							Cols:  cols,
 							Vals:  vals,
 						}
