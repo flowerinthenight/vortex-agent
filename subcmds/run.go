@@ -998,7 +998,7 @@ func run(ctx context.Context, done chan error) {
 					if strings.Contains(fmt.Sprintf("%s", event.Comm), "node") || (strings.Contains(fmt.Sprintf("%s", event.Comm), "python")) && params.RunfSaveDb {
 						cols := []string{
 							"org_id",
-							"host",
+							"host",         // podUId if k8s, else hostname
 							"container_id", // empty string if !k8s
 							"id",
 							"message_id",
