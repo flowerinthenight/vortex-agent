@@ -1000,13 +1000,13 @@ func run(ctx context.Context, done chan error) {
 							"org_id",
 							"host",         // podUId if k8s, else hostname
 							"container_id", // empty string if !k8s
-							"id",
-							"message_id",
+							"id",           // fmt: tgid/pid
+							"message_id",   // global counter per pod
 							"idx",
 							"src_addr",
 							"dst_addr",
-							"container_name",
-							"container_image",
+							"container_name",  // empty string if !k8s
+							"container_image", // empty string if !k8s
 							"content",
 							"created_at",
 						}
