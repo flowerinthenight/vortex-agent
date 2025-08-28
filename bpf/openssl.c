@@ -34,10 +34,7 @@ struct loop_data {
 };
 
 /* bpf_loop callback: send data to userspace in chunks of EVENT_BUF_LEN bytes. */
-static int do_loop_send_ssl_payload(u64 index, struct loop_data *data) {
-    if (data->type == TYPE_URETPROBE_SSL_READ)
-        bpf_printk("[do_loop_send_ssl_payload] index=%d, len=%d", index, *data->len);
-
+static int bpf_loop_cb__send_ssl_payload(u64 index, struct loop_data *data) {
     struct event *event;
     event = rb_events_reserve_with_stats();
     if (!event)
@@ -94,7 +91,7 @@ static __always_inline int do_uprobe_ssl_write(struct pt_regs *ctx) {
  * bpf_loop callback: parse HTTP/2 frames and attempt to extract the data frame.
  * Reference: https://httpwg.org/specs/rfc7540.html
  */
-static int loop_h2_parse(u64 index, struct loop_data *data) {
+static int bpf_loop_cb__h2_parse(u64 index, struct loop_data *data) {
     if (*data->cursor + H2_FRAME_HEADER_SIZE > data->orig_len)
         return BPF_END_LOOP;
 
@@ -148,7 +145,7 @@ static int loop_h2_parse(u64 index, struct loop_data *data) {
             .dport = data->dport,
         };
 
-        bpf_loop(4096, do_loop_send_ssl_payload, &d, 0);
+        bpf_loop(4096, bpf_loop_cb__send_ssl_payload, &d, 0);
     }
 
     *data->cursor += H2_FRAME_HEADER_SIZE + frame_len;
@@ -209,13 +206,13 @@ static __always_inline int do_uretprobe_ssl_write(struct pt_regs *ctx, int writt
 
     __u8 *unused = bpf_map_lookup_elem(&is_h2, &h2_key);
     if (!unused) {
-        bpf_loop(4096, do_loop_send_ssl_payload, &data, 0);
+        bpf_loop(4096, bpf_loop_cb__send_ssl_payload, &data, 0);
         goto cleanup_and_exit;
     }
 
     __u32 cursor = 0;
     data.cursor = &cursor;
-    bpf_loop(4096, loop_h2_parse, &data, 0);
+    bpf_loop(4096, bpf_loop_cb__h2_parse, &data, 0);
 
 cleanup_and_exit:
     bpf_map_delete_elem(&ssl_callstack, &key);
@@ -285,7 +282,8 @@ static __always_inline int do_uprobe_ssl_read(struct pt_regs *ctx) {
     return BPF_OK;
 }
 
-static int loop_h2_parse__read(u64 index, struct loop_data *data) {
+#ifdef DEBUG
+static int bpf_loop_cb__h2_parse_read(u64 index, struct loop_data *data) {
     __u32 limit = data->orig_len;
     __u32 *last_len = bpf_map_lookup_elem(&readbuf_len, &(*data->buf_ptr));
     if (last_len)
@@ -360,6 +358,35 @@ static int loop_h2_parse__read(u64 index, struct loop_data *data) {
     *data->cursor += H2_FRAME_HEADER_SIZE + frame_len;
     return BPF_CONTINUE_LOOP;
 }
+#endif
+
+struct has_data_frame_loop_data {
+    __u32 *cursor;
+    char **buf_ptr;
+    int orig_len;
+    __u32 *has_data_frame;
+};
+
+static int bpf_loop_cb__has_data_frame(u64 index, struct has_data_frame_loop_data *data) {
+    if (*data->cursor + H2_FRAME_HEADER_SIZE > data->orig_len)
+        return BPF_END_LOOP;
+
+    __u8 hdr[H2_FRAME_HEADER_SIZE];
+    if (bpf_probe_read_user(&hdr, sizeof(hdr), *data->buf_ptr + *data->cursor) != 0)
+        return BPF_END_LOOP;
+
+    __u32 frame_len = ((__u32)hdr[0] << 16) | ((__u32)hdr[1] << 8) | (__u32)hdr[2];
+    __u8 frame_type = hdr[3];
+
+    if (frame_type <= 0x9 && frame_type == H2_FRAME_TYPE_DATA && frame_len > 0) {
+        bpf_printk("[bpf_loop_cb__has_data_frame] H2 data frame found");
+        *data->has_data_frame = 1;
+        return BPF_END_LOOP;
+    }
+
+    *data->cursor += H2_FRAME_HEADER_SIZE + frame_len;
+    return BPF_CONTINUE_LOOP;
+}
 
 /* Shared with uretprobe/SSL_read and uretprobe/SSL_read_ex. */
 static __always_inline int do_uretprobe_ssl_read(struct pt_regs *ctx, int read) {
@@ -411,10 +438,26 @@ static __always_inline int do_uretprobe_ssl_read(struct pt_regs *ctx, int read) 
         bpf_loop(4096, loop_h2_parse__read, &data, 0);
         goto cleanup_and_exit;
         */
+
         bpf_printk("[do_uretprobe_ssl_read] H2 detected");
+
+        __u32 cursor = 0, has_data_frame = 0;
+        struct has_data_frame_loop_data hdf_data = {
+            .cursor = &cursor,
+            .buf_ptr = &buf,
+            .orig_len = read,
+            .has_data_frame = &has_data_frame,
+        };
+
+        bpf_loop(4096, bpf_loop_cb__has_data_frame, &hdf_data, 0);
+
+        if (has_data_frame == 1) {
+            bpf_loop(4096, bpf_loop_cb__send_ssl_payload, &data, 0);
+            goto cleanup_and_exit;
+        }
     }
 
-    bpf_loop(4096, do_loop_send_ssl_payload, &data, 0);
+    bpf_loop(4096, bpf_loop_cb__send_ssl_payload, &data, 0);
 
 cleanup_and_exit:
     bpf_map_delete_elem(&ssl_callstack, &key);

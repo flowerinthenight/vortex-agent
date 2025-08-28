@@ -15,7 +15,7 @@ struct sni_loop_data {
     __u32 *sni_len;
 };
 
-static int loop_parse_sni(u64 index, struct sni_loop_data *data) {
+static int bpf_loop_cb__parse_sni(u64 index, struct sni_loop_data *data) {
     if (*data->offset + 4 > *data->extensions_end)
         return BPF_END_LOOP;
 
@@ -174,7 +174,7 @@ int tc_egress(struct __sk_buff *skb) {
             .sni_len = &sni_len,
         };
 
-        if (bpf_loop(20, loop_parse_sni, &loop_data, 0) < 0)
+        if (bpf_loop(20, bpf_loop_cb__parse_sni, &loop_data, 0) < 0)
             goto set_trace_and_exit;
 
         if (sni_len > MAX_SNI_LEN - 1)
