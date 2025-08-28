@@ -88,7 +88,7 @@ static __always_inline int do_uprobe_ssl_write(struct pt_regs *ctx) {
 }
 
 /*
- * bpf_loop callback: parse HTTP/2 frames and attempt to extract the data frame.
+ * bpf_loop callback: parse HTTP/2 frames and attempt to extract the data frames.
  * Reference: https://httpwg.org/specs/rfc7540.html
  */
 static int bpf_loop_cb__h2_parse(u64 index, struct loop_data *data) {
