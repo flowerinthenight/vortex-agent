@@ -95,7 +95,6 @@ static int bpf_loop_cb__h2_parse(u64 index, struct loop_data *data) {
     if (*data->cursor + H2_FRAME_HEADER_SIZE > data->orig_len)
         return BPF_END_LOOP;
 
-    /* Read the 9-byte frame header. */
     __u8 hdr[H2_FRAME_HEADER_SIZE];
     if (bpf_probe_read_user(&hdr, sizeof(hdr), *data->buf_ptr + *data->cursor) != 0)
         return BPF_END_LOOP;
@@ -294,7 +293,6 @@ static int bpf_loop_cb__h2_parse_read(u64 index, struct loop_data *data) {
         return BPF_END_LOOP;
     }
 
-    /* Read the 9-byte frame header. */
     __u8 hdr[H2_FRAME_HEADER_SIZE];
     if (bpf_probe_read_user(&hdr, sizeof(hdr), *data->buf_ptr + *data->cursor) != 0)
         return BPF_END_LOOP;
@@ -438,8 +436,6 @@ static __always_inline int do_uretprobe_ssl_read(struct pt_regs *ctx, int read) 
         bpf_loop(4096, loop_h2_parse__read, &data, 0);
         goto cleanup_and_exit;
         */
-
-        bpf_printk("[do_uretprobe_ssl_read] H2 detected");
 
         __u32 cursor = 0, has_data_frame = 0;
         struct has_data_frame_loop_data hdf_data = {
