@@ -5,9 +5,6 @@
 #ifndef __BPF_VORTEX_TC_C
 #define __BPF_VORTEX_TC_C
 
-SEC("tc")
-int tc_ingress(struct __sk_buff *skb) { return TC_ACT_OK; }
-
 struct sni_loop_data {
     struct __sk_buff *skb;
     __u32 *offset;
@@ -51,7 +48,6 @@ static int bpf_loop_cb__parse_sni(u64 index, struct sni_loop_data *data) {
     }
 
     *data->offset += ext_len;
-
     return BPF_CONTINUE_LOOP;
 }
 
@@ -118,10 +114,10 @@ int tc_egress(struct __sk_buff *skb) {
         sport = tcph->source;
         dport = tcph->dest;
 
-        if (bpf_ntohs(sport) == 22) /* SSH, very noisy in test */
+        if (bpf_ntohs(sport) == 22) /* very noisy in test */
             goto set_trace_and_exit;
 
-        if (bpf_ntohs(dport) != 443) /* TLS is usually 443 */
+        if (bpf_ntohs(dport) != 443)
             goto set_trace_and_exit;
 
         offset += (tcph->doff * 4);
@@ -217,5 +213,8 @@ set_trace_and_exit:
     set_sni_trace(pid_tgid, trace);
     return TC_ACT_OK;
 }
+
+SEC("tc")
+int tc_ingress(struct __sk_buff *skb) { return TC_ACT_OK; }
 
 #endif /* __BPF_VORTEX_TC_C */
