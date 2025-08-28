@@ -447,10 +447,11 @@ static __always_inline int do_uretprobe_ssl_read(struct pt_regs *ctx, int read) 
 
         bpf_loop(4096, bpf_loop_cb__has_data_frame, &hdf_data, 0);
 
-        if (has_data_frame == 1) {
-            bpf_loop(4096, bpf_loop_cb__send_ssl_payload, &data, 0);
+        if (has_data_frame != 1)
             goto cleanup_and_exit;
-        }
+
+        bpf_loop(4096, bpf_loop_cb__send_ssl_payload, &data, 0);
+        goto cleanup_and_exit;
     }
 
     bpf_loop(4096, bpf_loop_cb__send_ssl_payload, &data, 0);
