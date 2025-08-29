@@ -27,6 +27,7 @@ struct loop_data {
     char **buf_ptr;
     int *len;
     int orig_len;
+    __u64 seq;
     __be32 saddr;
     __be32 daddr;
     __u16 sport;
@@ -45,6 +46,7 @@ static int bpf_loop_cb__send_ssl_payload(u64 index, struct loop_data *data) {
     event->type = data->type;
     event->total_len = data->orig_len;
     event->chunk_len = len;
+    event->seq_num = data->seq;
     event->chunk_idx = index;
     event->saddr = data->saddr;
     event->sport = data->sport;
@@ -138,6 +140,7 @@ static int bpf_loop_cb__h2_parse(u64 index, struct loop_data *data) {
             .buf_ptr = &buf,
             .len = &len,
             .orig_len = data->orig_len,
+            .seq = data->seq,
             .saddr = data->saddr,
             .daddr = data->daddr,
             .sport = data->sport,
@@ -197,6 +200,7 @@ static __always_inline int do_uretprobe_ssl_write(struct pt_regs *ctx, int writt
         .buf_ptr = &buf,
         .len = &num,
         .orig_len = written,
+        .seq = get_seq(),
         .saddr = saddr,
         .daddr = daddr,
         .sport = sport,
@@ -377,7 +381,6 @@ static int bpf_loop_cb__has_data_frame(u64 index, struct has_data_frame_loop_dat
     __u8 frame_type = hdr[3];
 
     if (frame_type <= 0x9 && frame_type == H2_FRAME_TYPE_DATA && frame_len > 0) {
-        bpf_printk("[bpf_loop_cb__has_data_frame] H2 data frame found");
         *data->has_data_frame = 1;
         return BPF_END_LOOP;
     }
@@ -422,20 +425,24 @@ static __always_inline int do_uretprobe_ssl_read(struct pt_regs *ctx, int read) 
         .buf_ptr = &buf,
         .len = &read,
         .orig_len = read,
+        .seq = get_seq(),
         .saddr = saddr,
         .daddr = daddr,
         .sport = sport,
         .dport = dport,
     };
 
-    __u8 *unused = bpf_map_lookup_elem(&is_h2, &h2_key);
-    if (unused) {
+    __u8 *h2_val = bpf_map_lookup_elem(&is_h2, &h2_key);
+    if (h2_val) {
         /*
         __u32 cursor = 0;
         data.cursor = &cursor;
         bpf_loop(4096, loop_h2_parse__read, &data, 0);
         goto cleanup_and_exit;
         */
+
+        if (read <= H2_FRAME_HEADER_SIZE)
+            goto cleanup_and_exit;
 
         __u32 cursor = 0, has_data_frame = 0;
         struct has_data_frame_loop_data hdf_data = {
@@ -447,10 +454,14 @@ static __always_inline int do_uretprobe_ssl_read(struct pt_regs *ctx, int read) 
 
         bpf_loop(4096, bpf_loop_cb__has_data_frame, &hdf_data, 0);
 
-        if (has_data_frame != 1)
-            goto cleanup_and_exit;
+        if (has_data_frame == 1 || (*h2_val & 0x1) == 0x1) {
+            if (has_data_frame == 1)
+                *h2_val |= 0x1;
 
-        bpf_loop(4096, bpf_loop_cb__send_ssl_payload, &data, 0);
+            bpf_loop(4096, bpf_loop_cb__send_ssl_payload, &data, 0);
+            goto cleanup_and_exit;
+        }
+
         goto cleanup_and_exit;
     }
 

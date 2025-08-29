@@ -19,6 +19,7 @@ struct event {
     __u8 buf[EVENT_BUF_LEN];
     __s64 total_len;
     __s64 chunk_len;
+    __u64 seq_num;
     __u32 chunk_idx;
     __u32 type;
     __u32 tgid;
@@ -50,6 +51,14 @@ struct {
     __type(key, __u32);                   /* always 0 */
     __type(value, struct events_stats_t); /* stats */
 } events_stats SEC(".maps");
+
+/* Arbitrary sequence number for events; to help with debugging chunks. */
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 1);
+    __type(key, __u32);   /* always 0 */
+    __type(value, __u64); /* sequence num */
+} seq SEC(".maps");
 
 /*
  * Map to control which TGIDs are traced. A key of TGID_ENABLE_ALL means
@@ -176,19 +185,34 @@ struct h2_k {
     __be16 dport;
 };
 
+/* Activated in SSL_write[_ex] when HTTP/2. */
 struct {
     __uint(type, BPF_MAP_TYPE_LRU_HASH);
     __uint(max_entries, 1024);
     __type(key, struct h2_k);
-    __type(value, __u8); /* unused */
+    __type(value, __u8); /* 1st bit = data frames found previously (read) */
 } is_h2 SEC(".maps");
 
+/* NOTE: temp only */
 struct {
     __uint(type, BPF_MAP_TYPE_LRU_HASH);
     __uint(max_entries, 1024);
     __type(key, char *);
     __type(value, __u32);
 } readbuf_len SEC(".maps");
+
+static __always_inline __u64 get_seq() {
+    __u32 seq_key = 0;
+    __u64 *seq_ptr = bpf_map_lookup_elem(&seq, &seq_key);
+    if (!seq_ptr) {
+        __u64 init_val = 0;
+        bpf_map_update_elem(&seq, &seq_key, &init_val, BPF_ANY);
+        return 0;
+    }
+
+    *seq_ptr += 1;
+    return *seq_ptr;
+}
 
 /* Set process information in the event structure. */
 static __always_inline void set_proc_info(struct event *event) {

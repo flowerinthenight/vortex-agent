@@ -946,7 +946,7 @@ func run(ctx context.Context, done chan error) {
 				case TYPE_UPROBE_SSL_WRITE:
 
 				case TYPE_URETPROBE_SSL_WRITE:
-					fmt.Fprintf(&line, "[uretprobe/SSL_write{_ex}] idx=%v, ", event.ChunkIdx)
+					fmt.Fprintf(&line, "[uretprobe/SSL_write{_ex}] idx=%v/%v, ", event.SeqNum, event.ChunkIdx)
 					fmt.Fprintf(&line, "buf=%s, ", internal.Readable(event.Buf[:], max(event.ChunkLen, 0)))
 					fmt.Fprintf(&line, "key=%v, totalLen=%v, chunkLen=%v, ", key, event.TotalLen, event.ChunkLen)
 					fmt.Fprintf(&line, "src=%v:%v, ", internal.IntToIp(event.Saddr), event.Sport)
@@ -1041,7 +1041,7 @@ func run(ctx context.Context, done chan error) {
 				case TYPE_UPROBE_SSL_READ:
 
 				case TYPE_URETPROBE_SSL_READ:
-					fmt.Fprintf(&line, "-> [uretprobe/SSL_read{_ex}] idx=%v, ", event.ChunkIdx)
+					fmt.Fprintf(&line, "-> [uretprobe/SSL_read{_ex}] idx=%v/%v, ", event.SeqNum, event.ChunkIdx)
 					fmt.Fprintf(&line, "buf=%s, ", internal.Readable(event.Buf[:], max(event.ChunkLen, 0)))
 					fmt.Fprintf(&line, "key=%v, totalLen=%v, chunkLen=%v, ", key, event.TotalLen, event.ChunkLen)
 					fmt.Fprintf(&line, "src=%v:%v, ", internal.IntToIp(event.Daddr), event.Dport)
