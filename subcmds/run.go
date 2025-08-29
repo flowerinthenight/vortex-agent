@@ -131,7 +131,7 @@ func run(ctx context.Context, done chan error) {
 
 	glog.Infof("Running on [%v]", internal.Uname())
 	orgId := os.Getenv("ORG_ID")
-	if orgId == "" {
+	if orgId == "" || orgId == "${ORG_ID}" {
 		orgId = "temp"
 	}
 
@@ -1008,6 +1008,7 @@ func run(ctx context.Context, done chan error) {
 							"container_name",  // empty string if !k8s
 							"container_image", // empty string if !k8s
 							"content",
+							"done",
 							"created_at",
 						}
 						vals := []any{
@@ -1022,6 +1023,7 @@ func run(ctx context.Context, done chan error) {
 							containerName,
 							containerImage,
 							internal.Readable(event.Buf[:], max(event.ChunkLen, 0)),
+							false,
 							"COMMIT_TIMESTAMP",
 						}
 						mut := internal.SpannerPayload{
