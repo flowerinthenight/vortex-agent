@@ -67,8 +67,8 @@ enum {
 };
 
 enum {
-    CG_SOCK_BLOCK = 0,
-    CG_SOCK_ALLOW = 1,
+    CG_SOCK_BLOCK,
+    CG_SOCK_ALLOW,
 };
 
 #endif /* __VORTEX_H */
