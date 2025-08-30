@@ -243,8 +243,9 @@ int uretprobe_ssl_write(struct pt_regs *ctx) { return do_uretprobe_ssl_write(ctx
 SEC("uprobe/SSL_write_ex")
 int uprobe_ssl_write_ex(struct pt_regs *ctx) {
     __u64 pid_tgid = bpf_get_current_pid_tgid();
+    struct pid_tgid_rw_k key = {.pid_tgid = pid_tgid, .rw_flag = F_WRITE};
     __u64 written = (__u64)PT_REGS_PARM4(ctx);
-    bpf_map_update_elem(&ssl_write_ex_p4, &pid_tgid, &written, BPF_ANY);
+    bpf_map_update_elem(&ssl_rw_ex_p4, &key, &written, BPF_ANY);
     return do_uprobe_ssl_write(ctx);
 }
 
@@ -255,13 +256,14 @@ int uprobe_ssl_write_ex(struct pt_regs *ctx) {
 SEC("uretprobe/SSL_write_ex")
 int uretprobe_ssl_write_ex(struct pt_regs *ctx) {
     __u64 pid_tgid = bpf_get_current_pid_tgid();
-    __u64 *written = bpf_map_lookup_elem(&ssl_write_ex_p4, &pid_tgid);
+    struct pid_tgid_rw_k key = {.pid_tgid = pid_tgid, .rw_flag = F_WRITE};
+    __u64 *written = bpf_map_lookup_elem(&ssl_rw_ex_p4, &key);
     if (!written)
         return BPF_OK;
 
     size_t len = 0;
     bpf_probe_read_user(&len, sizeof(len), (void *)*written);
-    bpf_map_delete_elem(&ssl_write_ex_p4, &pid_tgid);
+    bpf_map_delete_elem(&ssl_rw_ex_p4, &key);
     return do_uretprobe_ssl_write(ctx, (int)len);
 }
 
@@ -494,7 +496,8 @@ SEC("uprobe/SSL_read_ex")
 int uprobe_ssl_read_ex(struct pt_regs *ctx) {
     __u64 pid_tgid = bpf_get_current_pid_tgid();
     __u64 read = (__u64)PT_REGS_PARM4(ctx);
-    bpf_map_update_elem(&ssl_read_ex_p4, &pid_tgid, &read, BPF_ANY);
+    struct pid_tgid_rw_k key = {.pid_tgid = pid_tgid, .rw_flag = F_READ};
+    bpf_map_update_elem(&ssl_rw_ex_p4, &key, &read, BPF_ANY);
     return do_uprobe_ssl_read(ctx);
 }
 
@@ -505,13 +508,14 @@ int uprobe_ssl_read_ex(struct pt_regs *ctx) {
 SEC("uretprobe/SSL_read_ex")
 int uretprobe_ssl_read_ex(struct pt_regs *ctx) {
     __u64 pid_tgid = bpf_get_current_pid_tgid();
-    __u64 *read = bpf_map_lookup_elem(&ssl_read_ex_p4, &pid_tgid);
+    struct pid_tgid_rw_k key = {.pid_tgid = pid_tgid, .rw_flag = F_READ};
+    __u64 *read = bpf_map_lookup_elem(&ssl_rw_ex_p4, &key);
     if (!read)
         return BPF_OK;
 
     size_t len = 0;
     bpf_probe_read_user(&len, sizeof(len), (void *)*read);
-    bpf_map_delete_elem(&ssl_read_ex_p4, &pid_tgid);
+    bpf_map_delete_elem(&ssl_rw_ex_p4, &key);
     return do_uretprobe_ssl_read(ctx, (int)len);
 }
 

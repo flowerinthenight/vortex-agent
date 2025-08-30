@@ -71,27 +71,21 @@ struct {
     __type(value, __u8); /* unused */
 } tgids_to_trace SEC(".maps");
 
-/*
- * Map to store the written pointer for SSL_write_ex. The key is the PID/TGID,
- * and the value is a pointer to the "bytes written" value.
- */
-struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(max_entries, 1024);
-    __type(key, __u64);
-    __type(value, __u64);
-} ssl_write_ex_p4 SEC(".maps");
+struct pid_tgid_rw_k {
+    __u64 pid_tgid;
+    __u32 rw_flag; /* 0 = read, 1 = write */
+};
 
 /*
- * Map to store the read pointer for SSL_read_ex. The key is the PID/TGID,
- * and the value is a pointer to the "bytes read" value.
+ * Map to store the read|written pointer for SSL_read|write|_ex.
+ * The value is a pointer to the "bytes read|written|" value.
  */
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __uint(max_entries, 1024);
-    __type(key, __u64);
+    __type(key, struct pid_tgid_rw_k);
     __type(value, __u64);
-} ssl_read_ex_p4 SEC(".maps");
+} ssl_rw_ex_p4 SEC(".maps");
 
 /*
  * NOTE:
@@ -107,11 +101,6 @@ struct {
  * error-prone and requires a lot of maintenance. We might need to do offsets
  * in the future, for those BIO-custom apps.
  */
-
-struct pid_tgid_rw_k {
-    __u64 pid_tgid;
-    __u32 rw_flag; /* 0 = read, 1 = write */
-};
 
 /* Callstack context information. */
 struct ssl_callstack_v {
