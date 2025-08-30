@@ -108,8 +108,7 @@ struct {
  * in the future, for those BIO-custom apps.
  */
 
-/* Key for the fd_connect map. */
-struct ssl_callstack_k {
+struct pid_tgid_rw_k {
     __u64 pid_tgid;
     __u32 rw_flag; /* 0 = read, 1 = write */
 };
@@ -128,7 +127,7 @@ struct ssl_callstack_v {
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __uint(max_entries, 1024);
-    __type(key, struct ssl_callstack_k);
+    __type(key, struct pid_tgid_rw_k);
     __type(value, struct ssl_callstack_v);
 } ssl_callstack SEC(".maps");
 

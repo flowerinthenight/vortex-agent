@@ -12,7 +12,7 @@ static __always_inline void set_send_recv_msg_sk_info(struct event *event, struc
     event->dport = bpf_htons(BPF_CORE_READ(sk, __sk_common.skc_dport));
 }
 
-static __always_inline void set_ssl_callstack_socket_info(struct ssl_callstack_k *key, struct sock *sk) {
+static __always_inline void set_ssl_callstack_socket_info(struct pid_tgid_rw_k *key, struct sock *sk) {
     struct ssl_callstack_v *val;
     val = bpf_map_lookup_elem(&ssl_callstack, key);
     if (!val)
@@ -33,7 +33,7 @@ static __always_inline void set_ssl_callstack_socket_info(struct ssl_callstack_k
 SEC("fexit/tcp_sendmsg")
 int BPF_PROG2(tcp_sendmsg_fexit, struct sock *, sk, struct msghdr *, msg, size_t, size, int, ret) {
     __u64 pid_tgid = bpf_get_current_pid_tgid();
-    struct ssl_callstack_k key = {.pid_tgid = pid_tgid, .rw_flag = F_WRITE};
+    struct pid_tgid_rw_k key = {.pid_tgid = pid_tgid, .rw_flag = F_WRITE};
     set_ssl_callstack_socket_info(&key, sk);
 
     return BPF_OK;
@@ -51,7 +51,7 @@ int BPF_PROG(tcp_recvmsg_fexit, struct sock *sk, struct msghdr *msg, size_t len,
         return BPF_OK;
 
     __u64 pid_tgid = bpf_get_current_pid_tgid();
-    struct ssl_callstack_k key = {.pid_tgid = pid_tgid, .rw_flag = F_READ};
+    struct pid_tgid_rw_k key = {.pid_tgid = pid_tgid, .rw_flag = F_READ};
     set_ssl_callstack_socket_info(&key, sk);
 
     return BPF_OK;

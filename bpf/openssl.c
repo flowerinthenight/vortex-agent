@@ -83,7 +83,7 @@ static __always_inline int do_uprobe_ssl_write(struct pt_regs *ctx) {
     val.sport = 0;
     val.dport = 0;
 
-    struct ssl_callstack_k key = {.pid_tgid = pid_tgid, .rw_flag = F_WRITE};
+    struct pid_tgid_rw_k key = {.pid_tgid = pid_tgid, .rw_flag = F_WRITE};
     bpf_map_update_elem(&ssl_callstack, &key, &val, BPF_ANY);
 
     return BPF_OK;
@@ -157,7 +157,7 @@ static int bpf_loop_cb__h2_parse(u64 index, struct loop_data *data) {
 /* Shared with uretprobe/SSL_write and uretprobe/SSL_write_ex. */
 static __always_inline int do_uretprobe_ssl_write(struct pt_regs *ctx, int written) {
     __u64 pid_tgid = bpf_get_current_pid_tgid();
-    struct ssl_callstack_k key = {.pid_tgid = pid_tgid, .rw_flag = F_WRITE};
+    struct pid_tgid_rw_k key = {.pid_tgid = pid_tgid, .rw_flag = F_WRITE};
 
     if (written <= 0)
         goto cleanup_and_exit;
@@ -279,7 +279,7 @@ static __always_inline int do_uprobe_ssl_read(struct pt_regs *ctx) {
     val.sport = 0;
     val.dport = 0;
 
-    struct ssl_callstack_k key = {.pid_tgid = pid_tgid, .rw_flag = F_READ};
+    struct pid_tgid_rw_k key = {.pid_tgid = pid_tgid, .rw_flag = F_READ};
     bpf_map_update_elem(&ssl_callstack, &key, &val, BPF_ANY);
 
     return BPF_OK;
@@ -392,7 +392,7 @@ static int bpf_loop_cb__has_data_frame(u64 index, struct has_data_frame_loop_dat
 /* Shared with uretprobe/SSL_read and uretprobe/SSL_read_ex. */
 static __always_inline int do_uretprobe_ssl_read(struct pt_regs *ctx, int read) {
     __u64 pid_tgid = bpf_get_current_pid_tgid();
-    struct ssl_callstack_k key = {.pid_tgid = pid_tgid, .rw_flag = F_READ};
+    struct pid_tgid_rw_k key = {.pid_tgid = pid_tgid, .rw_flag = F_READ};
 
     if (read <= 0)
         goto cleanup_and_exit;
