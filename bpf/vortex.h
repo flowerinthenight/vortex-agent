@@ -2,11 +2,6 @@
 #define __VORTEX_H
 
 enum {
-    AF_INET = 2,
-    AF_INET6 = 10,
-};
-
-enum {
     TYPE_FENTRY_SOCK_SENDMSG = 1,
     TYPE_FEXIT_SOCK_RECVMSG = 2,
     TYPE_FEXIT_TCP_SENDMSG = 3,
@@ -24,8 +19,8 @@ enum {
 };
 
 enum {
-    F_READ,
-    F_WRITE,
+    AF_INET = 2,
+    AF_INET6 = 10,
 };
 
 #define EVENT_BUF_LEN 512
@@ -45,16 +40,6 @@ enum {
 #define H2_FLAG_PADDED 0x8
 
 enum {
-    VORTEX_NO_TRACE,
-    VORTEX_TRACE,
-};
-
-enum {
-    BPF_CONTINUE_LOOP,
-    BPF_END_LOOP,
-};
-
-enum {
     TC_ACT_UNSPEC = -1,
     TC_ACT_OK = 0,
     TC_ACT_RECLASSIFY = 1,
@@ -69,6 +54,21 @@ enum {
 enum {
     CG_SOCK_BLOCK,
     CG_SOCK_ALLOW,
+};
+
+enum {
+    F_READ,
+    F_WRITE,
+};
+
+enum {
+    VORTEX_NO_TRACE,
+    VORTEX_TRACE,
+};
+
+enum {
+    BPF_CONTINUE_LOOP,
+    BPF_END_LOOP,
 };
 
 #endif /* __VORTEX_H */
