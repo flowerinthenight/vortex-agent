@@ -512,10 +512,6 @@ func run(ctx context.Context, done chan error) {
 			}
 
 			return
-		} else {
-			if false {
-				return // TODO: test only; remove later
-			}
 		}
 
 		rootPidNsId := internal.GetInitPidNsId()
