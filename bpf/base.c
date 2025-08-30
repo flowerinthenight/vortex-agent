@@ -77,8 +77,8 @@ struct pid_tgid_rw_k {
 };
 
 /*
- * Map to store the read|written pointer for SSL_read|write|_ex.
- * The value is a pointer to the "bytes read|written|" value.
+ * Map to store the {read|written} pointer for SSL_{read|write}[_ex].
+ * The value is a pointer to the "bytes {read|written}" value.
  */
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
@@ -112,7 +112,7 @@ struct ssl_callstack_v {
     __be16 dport;
 };
 
-/* Active on SSL_{write|read} entry, removed on SSL_{write|read} exit. */
+/* Active on SSL_{write|read}[_ex] entry, removed on SSL_{write|read}[_ex] exit. */
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __uint(max_entries, 1024);
