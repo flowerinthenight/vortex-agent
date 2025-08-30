@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	spanner "cloud.google.com/go/spanner"
 )
@@ -39,7 +40,7 @@ func Send(token string, payload []SpannerPayload) error {
 	req.Header.Set("Content-Type", "application/json")
 	// req.Header.Set("Authorization", token)
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
