@@ -193,8 +193,10 @@ int tc_egress(struct __sk_buff *skb) {
             bpf_strncmp(sni, MAX_SNI_LEN, "alphaus.cloud") == 0 /* test:Alphaus */)
             trace = VORTEX_TRACE;
 
+#if DEBUG_BPF_PRINTK == 1
         bpf_printk("tc_egress: sni=%s, src=%pI4:%u, dst=%pI4:%u, pid_tgid=%llu", sni, &saddr, bpf_ntohs(sport), &daddr,
                    bpf_ntohs(dport), pid_tgid);
+#endif
 
         break;
 

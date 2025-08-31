@@ -130,10 +130,7 @@ struct fd_connect_v {
     __be16 dport;
 };
 
-/*
- * Check if a PID/TGID's fd has called connect on socket.
- * Active on sys_enter_connect, removed on sys_enter_close.
- */
+/* Check if a PID/TGID's fd has called connect on socket. */
 struct {
     __uint(type, BPF_MAP_TYPE_LRU_HASH);
     __uint(max_entries, 1024);
@@ -204,6 +201,7 @@ static __always_inline __u64 get_seq() {
 
 /* Set process information in the event structure. */
 static __always_inline void set_proc_info(struct event *event) {
+    __builtin_memset(event->comm, 0, sizeof(event->comm));
     bpf_get_current_comm(&event->comm, sizeof(event->comm));
     __u64 pid_tgid = bpf_get_current_pid_tgid();
     event->pid = pid_tgid & 0xFFFFFFFF;
@@ -250,7 +248,9 @@ static __always_inline void *rb_events_reserve_with_stats() {
     }
 
     __sync_fetch_and_add(&stats->lost, 1);
+#if DEBUG_BPF_PRINTK == 1
     bpf_printk("rb_events_reserve_with_stats: lost=%llu", stats->lost);
+#endif
 
     return rb;
 }

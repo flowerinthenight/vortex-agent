@@ -104,14 +104,14 @@ static int bpf_loop_cb__h2_parse(u64 index, struct loop_data *data) {
     __u32 frame_len = ((__u32)hdr[0] << 16) | ((__u32)hdr[1] << 8) | (__u32)hdr[2];
     __u8 frame_type = hdr[3], flags = hdr[4];
 
-    /*
+#ifdef __NO_DISCARD
     if (frame_type <= 0x9) {
         __u32 stream_id = ((__u32)hdr[5] << 24) | ((__u32)hdr[6] << 16) | ((__u32)hdr[7] << 8) | ((__u32)hdr[8]);
         stream_id = stream_id & 0x7FFFFFFF;
         bpf_printk("[%d] (e_type=%u) H2: type=0x%x frame_len=%u, stream_id=%u, flags=0x%x", index, data->type,
                    frame_type, frame_len, stream_id, flags);
     }
-    */
+#endif
 
     if (frame_type <= 0x9 && frame_type == H2_FRAME_TYPE_DATA && frame_len > 0) {
         __u32 payload_offset = *data->cursor + H2_FRAME_HEADER_SIZE;
@@ -287,7 +287,7 @@ static __always_inline int do_uprobe_ssl_read(struct pt_regs *ctx) {
     return BPF_OK;
 }
 
-#ifdef DEBUG
+#ifdef __NO_DISCARD
 static int bpf_loop_cb__h2_parse_read(u64 index, struct loop_data *data) {
     __u32 limit = data->orig_len;
     __u32 *last_len = bpf_map_lookup_elem(&readbuf_len, &(*data->buf_ptr));
@@ -356,13 +356,13 @@ static int bpf_loop_cb__h2_parse_read(u64 index, struct loop_data *data) {
             .dport = data->dport,
         };
 
-        bpf_loop(4096, do_loop_send_ssl_payload, &d, 0);
+        bpf_loop(4096, bpf_loop_cb__send_ssl_payload, &d, 0);
     }
 
     *data->cursor += H2_FRAME_HEADER_SIZE + frame_len;
     return BPF_CONTINUE_LOOP;
 }
-#endif
+#endif /* __NO_DISCARD */
 
 struct has_data_frame_loop_data {
     __u32 *cursor;

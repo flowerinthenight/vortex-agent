@@ -57,13 +57,13 @@ int BPF_PROG(tcp_recvmsg_fexit, struct sock *sk, struct msghdr *msg, size_t len,
     return BPF_OK;
 }
 
+#ifdef __NO_DISCARD
 /*
  * fentry/fexit hooks can be found in:
  * /sys/kernel/tracing/available_filter_functions
  *
  * https://elixir.bootlin.com/linux/v6.1.146/source/include/net/udp.h#L271
  */
-/*
 SEC("fexit/udp_sendmsg")
 int BPF_PROG2(udp_sendmsg_fexit, struct sock *, sk, struct msghdr *, msg, size_t, len, int, ret) {
     int trace_all = COMM_NO_TRACE_ALL;
@@ -72,7 +72,6 @@ int BPF_PROG2(udp_sendmsg_fexit, struct sock *, sk, struct msghdr *, msg, size_t
 
     return BPF_OK;
 }
-*/
 
 /*
  * fentry/fexit hooks can be found in:
@@ -80,7 +79,6 @@ int BPF_PROG2(udp_sendmsg_fexit, struct sock *, sk, struct msghdr *, msg, size_t
  *
  * https://elixir.bootlin.com/linux/v6.1.146/source/net/ipv4/udp_impl.h#L20
  */
-/*
 SEC("fexit/udp_recvmsg")
 int BPF_PROG(udp_recvmsg_fexit, struct sock *sk, struct msghdr *msg, size_t len, int flags, int *addr_len, int ret) {
     if (ret <= 0)
@@ -92,7 +90,7 @@ int BPF_PROG(udp_recvmsg_fexit, struct sock *sk, struct msghdr *msg, size_t len,
 
     return BPF_OK;
 }
-*/
+#endif /* __NO_DISCARD */
 
 /*
  * /sys/kernel/tracing/events/syscalls/sys_enter_connect/format

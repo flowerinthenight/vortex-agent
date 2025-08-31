@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # Local build only; environment specific.
+go generate
 DOCKER_BUILDKIT=0 docker build --rm -t vortex-agent .
 DOCKER_BUILDKIT=0 docker tag vortex-agent asia-docker.pkg.dev/mobingi-main/asia-pub/vortex-agent:$1
 DOCKER_BUILDKIT=0 docker push asia-docker.pkg.dev/mobingi-main/asia-pub/vortex-agent:$1
