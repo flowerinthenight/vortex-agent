@@ -338,13 +338,6 @@ static int bpf_loop_cb__h2_parse_read(u64 index, struct loop_data *data) {
         char *buf = *data->buf_ptr + payload_offset;
         int len = (int)data_len;
 
-        /*
-        if (payload_offset + data_len > data->orig_len) {
-            len = data->orig_len > payload_offset ? (int)(data->orig_len - payload_offset) : 0;
-            bpf_printk("[%d] adjusted len=%d", index, len);
-        }
-        */
-
         struct loop_data d = {
             .type = data->type,
             .buf_ptr = &buf,
@@ -436,12 +429,12 @@ static __always_inline int do_uretprobe_ssl_read(struct pt_regs *ctx, int read) 
 
     __u8 *h2_val = bpf_map_lookup_elem(&is_h2, &h2_key);
     if (h2_val) {
-        /*
+#ifdef __NO_DISCARD
         __u32 cursor = 0;
         data.cursor = &cursor;
         bpf_loop(4096, loop_h2_parse__read, &data, 0);
         goto cleanup_and_exit;
-        */
+#endif /* __NO_DISCARD */
 
         if (read <= H2_FRAME_HEADER_SIZE)
             goto cleanup_and_exit;

@@ -126,9 +126,11 @@ int sys_enter_connect(struct trace_event_raw_sys_enter *ctx) {
         return BPF_OK;
     }
 
+#ifdef __NO_DISCARD
     if (usr_addrlen >= sizeof(struct sockaddr_in6)) {
         /* TODO: IPv6 */
     }
+#endif /* __NO_DISCARD */
 
     return BPF_OK;
 }
