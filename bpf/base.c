@@ -248,6 +248,7 @@ static __always_inline void *rb_events_reserve_with_stats() {
     }
 
     __sync_fetch_and_add(&stats->lost, 1);
+
 #if DEBUG_BPF_PRINTK == 1
     bpf_printk("rb_events_reserve_with_stats: lost=%llu", stats->lost);
 #endif

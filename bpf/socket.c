@@ -57,7 +57,7 @@ int BPF_PROG(tcp_recvmsg_fexit, struct sock *sk, struct msghdr *msg, size_t len,
     return BPF_OK;
 }
 
-#ifdef __NO_DISCARD
+#if 0
 /*
  * fentry/fexit hooks can be found in:
  * /sys/kernel/tracing/available_filter_functions
@@ -90,7 +90,7 @@ int BPF_PROG(udp_recvmsg_fexit, struct sock *sk, struct msghdr *msg, size_t len,
 
     return BPF_OK;
 }
-#endif /* __NO_DISCARD */
+#endif /* 0 */
 
 /*
  * /sys/kernel/tracing/events/syscalls/sys_enter_connect/format
@@ -126,11 +126,11 @@ int sys_enter_connect(struct trace_event_raw_sys_enter *ctx) {
         return BPF_OK;
     }
 
-#ifdef __NO_DISCARD
+#if 0
     if (usr_addrlen >= sizeof(struct sockaddr_in6)) {
         /* TODO: IPv6 */
     }
-#endif /* __NO_DISCARD */
+#endif /* 0 */
 
     return BPF_OK;
 }
